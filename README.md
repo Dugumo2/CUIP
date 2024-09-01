@@ -1,2 +1,2 @@
 # CUIP
-CUPIU的测试
+CUIPU的测试

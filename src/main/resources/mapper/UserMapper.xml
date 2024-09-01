@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.epoch.mapper.UserMapper">
+
+    <!-- 通用查询映射结果 -->
+    <resultMap id="BaseResultMap" type="com.epoch.model.po.User">
+        <id column="user_id" property="userId" />
+        <result column="student_id" property="studentId" />
+        <result column="gender" property="gender" />
+        <result column="nickname" property="nickname" />
+        <result column="email" property="email" />
+        <result column="create_time" property="createTime" />
+        <result column="modify_time" property="modifyTime" />
+        <result column="avatar_url" property="avatarUrl" />
+        <result column="bio" property="bio" />
+        <result column="status" property="status" />
+        <result column="is_online" property="isOnline" />
+        <result column="is_deleted" property="isDeleted" />
+        <result column="is_admin" property="isAdmin" />
+        <result column="password" property="password" />
+        <result column="epoch_id" property="epochId" />
+    </resultMap>
+
+    <!-- 通用查询结果列 -->
+    <sql id="Base_Column_List">
+        user_id, student_id, gender, nickname, email, create_time, modify_time, avatar_url, bio, status, is_online, is_deleted, is_admin, password,epoch_id
+    </sql>
+
+    <!-- 根据 epochId 查询用户 -->
+    <select id="selectUserByEpochId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM user
+        WHERE epoch_id = #{epochId}
+    </select>
+
+    <!-- 获取用户全部信息 -->
+    <select id="getAllUserInfo" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List" />
+        FROM user
+        WHERE user_id = #{userId}
+    </select>
+
+</mapper>

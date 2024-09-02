@@ -27,6 +27,7 @@ public class PostController {
     private PostService postService;
 
 
+
     /**
      * 获取我的帖子
      * @return 结果
@@ -51,7 +52,9 @@ public class PostController {
      * @return 结果
      */
     @GetMapping("/getPostInfo")
-    public Result getPostInfo() {return null;}
+    public Result getPostInfo(@RequestParam String postId) {
+        return postService.getPostInfoById(postId);
+    }
 
     /**
      * 在某个话题下发布帖子
@@ -86,8 +89,8 @@ public class PostController {
      * @return
      */
     @PostMapping("/uploadPostImg")
-    public Result uploadPostImg(MultipartFile file) throws Exception {
-        return Result.ok(postService.uploadPostImg(file));
+    public Result uploadPostImg(MultipartFile file, @RequestParam("objectName") String objectName) throws Exception {
+        return Result.ok(postService.uploadPostImg(file, objectName));
     }
 
     /**
@@ -142,5 +145,14 @@ public class PostController {
         return Result.ok("提交评分成功");
     }
 
+
+    /**
+     * 获取轮播图详情
+     * @return
+     */
+    @GetMapping("/getCarouselInfo")
+    public Result getCarouselInfo(@RequestParam String postId){
+        return postService.getCarouselInfo(postId);
+    }
 
 }

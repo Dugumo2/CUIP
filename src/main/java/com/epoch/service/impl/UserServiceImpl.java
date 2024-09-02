@@ -11,7 +11,6 @@ import com.epoch.mapper.UserMapper;
 import com.epoch.model.vo.Result;
 import com.epoch.service.UserService;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.epoch.util.Base64URLDecoder;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
@@ -35,8 +34,6 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static com.epoch.util.SystemConstants.APP_SECRET;
-
 /**
  * <p>
  *  服务实现类
@@ -48,6 +45,8 @@ import static com.epoch.util.SystemConstants.APP_SECRET;
 @Service
 @Slf4j
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
+    private static final int GCM_TAG_LENGTH = 16;
+    private static final int GCM_IV_LENGTH = 12;
     @Autowired
     private UserMapper userMapper;
     @Override
@@ -77,10 +76,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
-    public Object getEpass(String sauce){
+    public Result getEpass(String sauce){
         try {
             EpassUserDO epassUserDO = decrypt(sauce);
-            log.info("解密成功");
             // 获取当前时间的 Instant 对象
             Instant now = Instant.now();
             // 将当前时间转换为 ZonedDateTime 对象
@@ -95,91 +93,73 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             // 比较签发时间和5秒前的时间
             if (signatureIssueDateTime.isBefore(fiveSecondsAgo)) {
                 // 签发时间早于5秒前，校验失败
-                return "签发时间早于5秒前，校验失败";
-            }
-            else {
-                    User user = userMapper.selectUserByEpochId(epassUserDO.getUserId());
-                    if (user != null) {
-                        StpUtil.login(user.getUserId());
-                        log.info("登陆成功");
-                        return StpUtil.getTokenInfo();
-                    }
-                    else {
-                        return "未找到对应的epochId";
-                    }
+                return Result.fail("签发时间早于5秒前，校验失败");
+            } else {
+
+                User user = userMapper.selectUserByEpochId(epassUserDO.getUserId());
+                if (user != null) {
+                    StpUtil.login(user.getUserId());
+                    log.info("登陆成功");
+                    return Result.ok(StpUtil.getTokenInfo());
+                } else {
+                    return Result.fail("未找到对应的epochId");
                 }
             }
-        catch (Exception e) {
-            return "Error processing sauce";
+        }catch (Exception e) {
+            return Result.fail("Error processing sauce");
         }
     }
     public static EpassUserDO decrypt(String sauce) throws Exception {
-        try {
-            // Base64URL 解码
-            byte[] sauceBytes = Base64URLDecoder.decode(sauce);
+        // Base64URL 解码
+        byte[] sauceBytes = Base64.getUrlDecoder().decode(sauce);
 
-            // 前 12 字节为IV
-            byte[] iv = new byte[12];
-            System.arraycopy(sauceBytes, 0, iv, 0, 12);
+        // 前 12 字节为IV
+        byte[] iv = new byte[GCM_IV_LENGTH];
+        System.arraycopy(sauceBytes, 0, iv, 0, GCM_IV_LENGTH);
 
-            // 剩余部分为密文（包含认证标签）
-            int ciphertextLength = sauceBytes.length - 12;
-            byte[] ciphertextWithTag = new byte[ciphertextLength];
-            System.arraycopy(sauceBytes, 12, ciphertextWithTag, 0, ciphertextLength);
+        // 剩余部分为密文（包含认证标签）
+        int ciphertextLength = sauceBytes.length - GCM_IV_LENGTH;
+        byte[] ciphertextWithTag = new byte[ciphertextLength];
+        System.arraycopy(sauceBytes, GCM_IV_LENGTH, ciphertextWithTag, 0, ciphertextLength);
 
-            // 创建 AES 密钥
-//            String APP_SECRET = System.getenv("APP_SECRET"); // 从环境变量读取密钥
-//            if (APP_SECRET == null) {
-//                throw new Exception("APP_SECRET not set");
-//            }
-            SecretKeySpec keySpec = new SecretKeySpec(APP_SECRET.getBytes(StandardCharsets.UTF_8), "AES");
+        // 创建 AES 密钥
+        String APP_SECRET = "00000000000000000000000000000000";
+        SecretKeySpec keySpec = new SecretKeySpec(APP_SECRET.getBytes(StandardCharsets.UTF_8), "AES");
 
-            // 设置 GCM 参数
-            GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(128, iv);
+        // 设置 GCM 参数
+        GCMParameterSpec gcmParameterSpec = new GCMParameterSpec(GCM_TAG_LENGTH * 8, iv);
+        byte[] decryptedText = null;
 
-            // 初始化解密 Cipher
-            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-            cipher.init(Cipher.DECRYPT_MODE, keySpec, gcmParameterSpec);
 
-            // 解密（密文和认证标签都在 ciphertextWithTag 中）
-            byte[] decryptedText = cipher.doFinal(ciphertextWithTag);
+        // 初始化解密 Cipher
+        Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+        cipher.init(Cipher.DECRYPT_MODE, keySpec, gcmParameterSpec);
 
-            // 返回解密后的字符串转化为EpassUserDo对象
-            return new ObjectMapper().readValue(new String(decryptedText, StandardCharsets.UTF_8), EpassUserDO.class);
-        } catch (Exception e) {
-            // 记录日志或返回错误信息
-            e.printStackTrace();
-            throw e;
+        // 解密（密文和认证标签都在 ciphertextWithTag 中）
+        decryptedText = cipher.doFinal(ciphertextWithTag);
+
+        // 返回解密后的字符串转化为EpassUserDo对象
+        return new ObjectMapper().readValue(new String(decryptedText, StandardCharsets.UTF_8), EpassUserDO.class);
+    }
+
+    @Override
+    public Result getUserInfo(String userId) {
+        // 检查用户是否已经登录
+        if (!StpUtil.isLogin(userId)) {
+            return Result.fail("用户未登录或登录已过期，请重新登录");
         }
-    }
-
-
-    public static byte[] decode(String sauce) {
-        // 将Base64URL编码转换为标准的Base64编码
-        String standardBase64 = sauce.replace('-', '+').replace('_', '/');
-
-        // 进行Base64解码
-        return Base64.getDecoder().decode(standardBase64);
+        // 根据userId获取用户信息
+        User user = userMapper.getAllUserInfo(userId);
+        if (user == null) {
+            return Result.fail("用户不存在");
+        }
+        return Result.ok(user);
     }
 
     @Override
-    public Object getUserInfo(String userId) {
-            // 检查用户是否已经登录
-            if (!StpUtil.isLogin(userId)) {
-                return Result.fail("用户未登录或登录已过期，请重新登录");
-            }
-            // 根据userId获取用户信息
-            User user = userMapper.getAllUserInfo(userId);
-            if (user == null) {
-                return Result.fail("用户不存在");
-            }
-            return user;
-    }
-
-    @Override
-    public Object getUserBasicInfo(String userId) {
+    public Result getUserBasicInfo(String userId) {
         // 调用Mapper方法获取用户基本信息
         BasicUser user = userMapper.getBasicUserInfo(userId);
-        return user;
+        return Result.ok(user);
     }
 }

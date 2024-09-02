@@ -158,7 +158,6 @@
             <version>3.10.1</version>
         </dependency>
 
-
         <!-- Hutool工具包 -->
         <dependency>
             <groupId>cn.hutool</groupId>
@@ -167,14 +166,13 @@
         </dependency>
 
 
+
         <!-- webp-imageio 依赖 -->
         <dependency>
             <groupId>org.sejda.imageio</groupId>
             <artifactId>webp-imageio</artifactId>
             <version>0.1.6</version>
         </dependency>
-
-
 
     </dependencies>
     <dependencyManagement>

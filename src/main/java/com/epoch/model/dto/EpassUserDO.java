@@ -2,7 +2,6 @@ package com.epoch.model.dto;
 
 import lombok.Data;
 
-
 @Data
 public class EpassUserDO {
 

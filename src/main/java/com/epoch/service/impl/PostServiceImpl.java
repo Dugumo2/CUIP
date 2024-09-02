@@ -44,26 +44,28 @@ public class PostServiceImpl extends ServiceImpl<PostMapper, Post> implements Po
     @Autowired
     UserService userService;
 
-
     @Autowired
     private MinioUtil minioUtil;
 
     @Value("${minio.bucketName}")
     private String bucket;
+
     /**
      * 上传文件到minio中，返回img_urls
      *
      * @param file
      * @return
      */
+
     @Override
-    public Object uploadPostImg(MultipartFile file) throws Exception {
+    public Object uploadPostImg(MultipartFile file, String objectName) throws Exception {
         if (file.isEmpty()) {
             return Result.fail("上传的文件不能为空！");
         }
-            String urls = minioUtil.uploadFile(file, bucket, file.getOriginalFilename());
-            log.info("上传文件成功，urls：{}", urls);
-            return urls;
+            String finalName = objectName + "." + getFileExtension(file);
+            String urls = minioUtil.uploadFile(file, bucket, finalName);
+            log.info("上传文件成功，objectName：{}", finalName);
+            return Result.ok(urls);
     }
 
 
@@ -106,10 +108,11 @@ public class PostServiceImpl extends ServiceImpl<PostMapper, Post> implements Po
         Float score = postMapper.getPostScore(userId, topicId);
 
         if (Objects.nonNull(score)) {
+
             return score;
         }
 
-        return DEFAULT_SCORE;
+        return Result.ok(DEFAULT_SCORE);
     }
 
     /**
@@ -189,4 +192,5 @@ public class PostServiceImpl extends ServiceImpl<PostMapper, Post> implements Po
         postVo.setNickname(nickname);
         return Result.ok(postVo);
     }
+
 }

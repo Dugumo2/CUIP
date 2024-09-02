@@ -22,6 +22,7 @@ public interface UserService extends IService<User> {
 
     Result loginOut();
     //Epass登陆
+
     Object getEpass(String sauce);
     // 新增获取用户全部信息的方法
     Object getUserInfo(String userId);

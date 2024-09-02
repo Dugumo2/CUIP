@@ -87,7 +87,7 @@ public class UserController {
     }
 
     @GetMapping("/EpassLogin")
-    public Result EpassLogin(@RequestParam("sauce")String sauce) {
+    public Result EpassLogin(@RequestParam("sauce")String sauce) throws Exception {
         return Result.ok(userService.getEpass(sauce));
     }
 

@@ -16,7 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
  */
 public interface PostService extends IService<Post> {
 
-    Object uploadPostImg(MultipartFile file) throws Exception;
+    Object uploadPostImg(MultipartFile file, String objectName) throws Exception;
 
     void submitPost(UploadPost uploadPost);
 
@@ -24,9 +24,9 @@ public interface PostService extends IService<Post> {
 
     void submitPostScore(String topicId, Integer score);
 
+    Object getTopicScore(String topicId);
+
     Result getPostInfoById(String postId);
 
     Result getCarouselInfo(String postId);
-
-    Object getTopicScore(String topicId);
 }

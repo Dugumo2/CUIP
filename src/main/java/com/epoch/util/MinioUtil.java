@@ -7,7 +7,6 @@ import io.minio.messages.Bucket;
 
 import org.apache.tomcat.jni.FileInfo;
 import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 
@@ -21,16 +20,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import static com.epoch.util.SystemConstants.IMG_URLS_PREFIX;
-import static java.io.File.separator;
 
 
 @Component
@@ -52,8 +48,28 @@ public class MinioUtil {
     /**
      * 上传文件
      */
+//    public void uploadFile(InputStream inputStream, String bucket, String objectName) throws Exception {
+//        PutObjectOptions options = new PutObjectOptions(inputStream.available(),-1);
+//        options.setContentType(file.getContentType());
+//
+//        minioClient.putObject(PutObjectArgs.builder().bucket(bucket).object(objectName)
+//                .stream(inputStream, -1, 5242889L).build());
+//    }
 
-    public String uploadFile(MultipartFile file, String bucket, String dirPath) throws IOException, ErrorResponseException, InvalidResponseException, XmlParserException, InternalException, ServerException, InvalidBucketNameException, InsufficientDataException, NoSuchAlgorithmException, InvalidKeyException {
+    //filename--图片名称  bucket -- 桶名称（bucketName）  serviceUrl--文件服务器地址
+//    public String saveImg(MultipartFile file, String bucket, String objectName) throws NoSuchAlgorithmException, IOException, InvalidPortException, InvalidEndpointException {
+//            InputStream in = file.getInputStream();
+//            PutObjectOptions options = new PutObjectOptions(in.available(),-1);
+//            options.setContentType(file.getContentType());
+//            minioClient.putObject(bucket, fileName, in, options);
+//            System.out.println("successfully uploaded to `test` bucket.");
+//            in.close();
+//            String url = serviceUrl+"/"+bucket+"/"+fileName;
+//        return url;
+//    }
+
+
+    public String uploadFile(MultipartFile file, String bucket, String objectName) throws IOException, InvalidPortException, InvalidEndpointException, ServerException, InvalidBucketNameException, InsufficientDataException, ErrorResponseException, InvalidKeyException, InvalidResponseException, XmlParserException, InternalException, ServerException, InvalidBucketNameException, InsufficientDataException, NoSuchAlgorithmException, InvalidKeyException {
         // 读取原始文件
         InputStream originalInputStream = file.getInputStream();
         BufferedImage originalImage = ImageIO.read(originalInputStream);
@@ -63,66 +79,35 @@ public class MinioUtil {
             throw new IOException("Failed to read image from input stream.");
         }
 
+        // 调整图像大小
+        int targetWidth = 800; // 目标宽度
+        int targetHeight = 600; // 目标高度
+        BufferedImage resizedImage = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2d = resizedImage.createGraphics();
+        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2d.drawImage(originalImage, 0, 0, targetWidth, targetHeight, null);
+        g2d.dispose();
+
         // 将调整大小后的图像写入输出流
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        ImageIO.write(originalImage, "webp", outputStream);
-
-
-        //转换为webp格式
-        WebpUtils.towebp(outputStream.toByteArray(), outputStream);
+        ImageIO.write(resizedImage, "jpg", outputStream); // 假设输出格式为jpg
 
         // 确保数据已写入 outputStream
         if (outputStream.size() == 0) {
             throw new IOException("Failed to write image to output stream.");
         }
 
-        // 生成新的文件路径
-        String objectName = builderFilePath(dirPath.substring(0,dirPath.lastIndexOf(".")) + ".webp" );
-
         // 将调整大小后的图像上传到 MinIO
         byte[] resizedBytes = outputStream.toByteArray();
         InputStream resizedInputStream = new ByteArrayInputStream(resizedBytes);
         PutObjectOptions options = new PutObjectOptions(resizedBytes.length, -1);
-        options.setContentType("image/webp");
+        options.setContentType(file.getContentType());
         minioClient.putObject(bucket, objectName, resizedInputStream, options);
 
         System.out.println("successfully uploaded to `" + bucket + "` bucket.");
         resizedInputStream.close();
 
         return IMG_URLS_PREFIX + objectName;
-    }
-
-
-
-    /**
-     * 调整图像大小
-     * @param originalImage
-     * @param targetWidth
-     * @param targetHeight
-     * @return
-     */
-    private BufferedImage resizeImage(BufferedImage originalImage, int targetWidth, int targetHeight) {
-        BufferedImage resizedImage = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_RGB);
-        Graphics2D g2d = resizedImage.createGraphics();
-        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g2d.drawImage(originalImage, 0, 0, targetWidth, targetHeight, null);
-        g2d.dispose();
-        return resizedImage;
-    }
-
-
-    /**
-     * 按照时间构建文件路径
-     * @param dirPath
-     * @return
-     */
-    public String builderFilePath(String dirPath) {
-        StringBuilder stringBuilder = new StringBuilder(50);
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd");
-        String todayStr = sdf.format(new Date());
-        stringBuilder.append(todayStr).append("/");
-        stringBuilder.append(dirPath);
-        return stringBuilder.toString();
     }
 
 

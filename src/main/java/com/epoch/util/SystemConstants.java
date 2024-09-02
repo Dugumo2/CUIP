@@ -7,6 +7,4 @@ public class SystemConstants {
 
     public static final Integer DEFAULT_SCORE = -1;
 
-    public static final String APP_SECRET = "11111111111111111111111111111111";
-
 }

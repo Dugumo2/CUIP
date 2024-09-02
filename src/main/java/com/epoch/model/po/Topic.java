@@ -21,7 +21,6 @@ public class Topic implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @TableId
-
     private String topicId;
 
     private BigDecimal score;
